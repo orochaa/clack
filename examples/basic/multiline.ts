@@ -115,4 +115,36 @@ import * as p from '@clack/prompts';
 		'6Lore ipsum dolor sit amet, consectetur adipisicing elit. Atque eaque error eum ex, fugiat harum labore laboriosam libero magnam maiores modi natus optio quae quod recusandae repellendus sapiente vero voluptatum.',
 		'6Lore ipsum dolor sit amet, consectetur adipisicing '
 	);
+	p.intro(
+		'6Lore ipsum dolor sit amet, consectetur adipisicing elit. Atque eaque error eum ex, fugiat harum labore laboriosam libero magnam maiores modi natus optio quae quod recusandae repellendus sapiente vero voluptatum.'
+	);
+	p.cancel(
+		'6Lore ipsum dolor sit amet, consectetur adipisicing elit. Atque eaque error eum ex, fugiat harum labore laboriosam libero magnam maiores modi natus optio quae quod recusandae repellendus sapiente vero voluptatum.'
+	);
+	p.outro(
+		'6Lore ipsum dolor sit amet, consectetur adipisicing elit. Atque eaque error eum ex, fugiat harum labore laboriosam libero magnam maiores modi natus optio quae quod recusandae repellendus sapiente vero voluptatum.'
+	);
+
+	p.intro('spinner start...');
+
+	const spin = p.spinner();
+	const total = 10000;
+	let progress = 0;
+	spin.start();
+
+	new Promise((resolve) => {
+		const timer = setInterval(() => {
+			progress = Math.min(total, progress + 100);
+			if (progress >= total) {
+				clearInterval(timer);
+				resolve(true);
+			}
+			spin.message(
+				`Loading lorem ipsum dolor sit amet, consectetur adipisicing elit. Atque eaque error eum ex, fugiat harum labore laboriosam libero magnam maiores modi natus optio quae quod recusandae repellendus sapiente vero voluptatum. [${progress}/${total}]`
+			); // <===
+		}, 100);
+	}).then(() => {
+		spin.stop(`Done`);
+		p.outro('spinner stop...');
+	});
 })();
