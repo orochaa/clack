@@ -4,6 +4,7 @@ import type { Readable, Writable } from 'node:stream';
 import { WriteStream } from 'node:tty';
 import { cursor, erase } from 'sisteransi';
 import wrap from 'wrap-ansi';
+import { strLength } from '../utils';
 
 import { CANCEL_SYMBOL, diffLines, isActionKey, setRawMode, settings } from '../utils';
 
@@ -19,6 +20,89 @@ export interface PromptOptions<Self extends Prompt> {
 	output?: Writable;
 	debug?: boolean;
 	signal?: AbortSignal;
+}
+
+export type State = 'initial' | 'active' | 'cancel' | 'submit' | 'error';
+
+export type LineOption = 'firstLine' | 'newLine' | 'lastLine';
+
+export interface FormatLineOptions {
+	/**
+	 * Define the start of line
+	 * @example
+	 * format('foo', {
+	 * 	line: {
+	 * 		start: '-'
+	 * 	}
+	 * })
+	 * //=> '- foo'
+	 */
+	start: string;
+	/**
+	 * Define the end of line
+	 * @example
+	 * format('foo', {
+	 * 	line: {
+	 * 		end: '-'
+	 * 	}
+	 * })
+	 * //=> 'foo -'
+	 */
+	end: string;
+	/**
+	 * Define the sides of line
+	 * @example
+	 * format('foo', {
+	 * 	line: {
+	 * 		sides: '-'
+	 * 	}
+	 * })
+	 * //=> '- foo -'
+	 */
+	sides: string;
+	/**
+	 * Define the style of line
+	 * @example
+	 * format('foo', {
+	 * 	line: {
+	 * 		style: (line) => `(${line})`
+	 * 	}
+	 * })
+	 * //=> '(foo)'
+	 */
+	style: (line: string) => string;
+}
+
+export interface FormatOptions extends Record<LineOption, Partial<FormatLineOptions>> {
+	/**
+	 * Shorthand to define values for each line
+	 * @example
+	 * format('foo', {
+	 * 	default: {
+	 * 		start: '-'
+	 * 	}
+	 * // equals
+	 * 	firstLine{
+	 * 		start: '-'
+	 * 	},
+	 * 	newLine{
+	 * 		start: '-'
+	 * 	},
+	 * 	lastLine{
+	 * 		start: '-'
+	 * 	},
+	 * })
+	 */
+	default: Partial<FormatLineOptions>;
+	/**
+	 * Define the max width of each line
+	 * @example
+	 * format('foo bar baz', {
+	 * 	maxWidth: 7
+	 * })
+	 * //=> 'foo bar\nbaz'
+	 */
+	maxWidth: number;
 }
 
 export default class Prompt {
@@ -246,6 +330,69 @@ export default class Prompt {
 		this.output.write(cursor.move(-999, lines * -1));
 	}
 
+	public format(text: string, options?: Partial<FormatOptions>): string {
+		const getLineOption = <TLine extends LineOption, TKey extends keyof FormatLineOptions>(
+			line: TLine,
+			key: TKey
+		): NonNullable<FormatOptions[TLine][TKey]> => {
+			return (
+				key === 'style'
+					? options?.[line]?.[key] ?? ((line) => line)
+					: options?.[line]?.[key] ?? options?.[line]?.sides ?? options?.default?.[key] ?? ''
+			) as NonNullable<FormatOptions[TLine][TKey]>;
+		};
+		const getLineOptions = (line: LineOption): Omit<FormatLineOptions, 'sides'> => {
+			return {
+				start: getLineOption(line, 'start'),
+				end: getLineOption(line, 'end'),
+				style: getLineOption(line, 'style'),
+			};
+		};
+
+		const firstLine = getLineOptions('firstLine');
+		const newLine = getLineOptions('newLine');
+		const lastLine = getLineOptions('lastLine');
+
+		const terminalWidth = process.stdout.columns || 80;
+		const maxWidth = options?.maxWidth ?? terminalWidth - 2;
+
+		const formattedLines: string[] = [];
+		const paragraphs = text.split(/\n/g);
+
+		for (let i = 0; i < paragraphs.length; i++) {
+			const opt = <TPosition extends Exclude<keyof FormatLineOptions, 'sides'>>(
+				position: TPosition
+			): FormatLineOptions[TPosition] => {
+				return (
+					i === 0
+						? firstLine[position]
+						: i + 1 === paragraphs.length
+						? lastLine[position]
+						: newLine[position]
+				) as FormatLineOptions[TPosition];
+			};
+			const startLine = opt('start');
+			const endLine = opt('end');
+			const styleLine = opt('style');
+			let currentLine = ' ';
+
+			const words = paragraphs[i].split(/\s/g);
+			for (const word of words) {
+				if (strLength(startLine + currentLine + word + endLine) + 3 <= maxWidth) {
+					currentLine += ` ${word}`;
+				} else {
+					formattedLines.push([startLine, styleLine(currentLine), endLine].join(' '));
+					currentLine = word;
+				}
+			}
+
+			formattedLines.push([startLine, styleLine(currentLine), endLine].join(' '));
+		}
+
+		return formattedLines.join('\n');
+	}
+
+	private _prevFrame = '';
 	private render() {
 		const frame = wrap(this._render(this) ?? '', process.stdout.columns, { hard: true });
 		if (frame === this._prevFrame) return;
