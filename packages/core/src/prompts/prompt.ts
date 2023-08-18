@@ -376,7 +376,7 @@ export default class Prompt {
 					currentLine += ` ${word}`;
 				} else if (strLength(word) + emptySlots >= maxWidth) {
 					const splitIndex = maxWidth - strLength(currentLine) - emptySlots - 1;
-					formattedLines.push(currentLine + ' ' + word.slice(0, splitIndex));
+					formattedLines.push(`${currentLine} ${word.slice(0, splitIndex)}`);
 
 					const chunkLength = maxWidth - emptySlots;
 					let chunk = word.slice(splitIndex);
@@ -417,7 +417,7 @@ export default class Prompt {
 				// only format the line without the leading space.
 				const leadingSpaceRegex = /^\s/;
 				const styledLine = leadingSpaceRegex.test(line)
-					? ' ' + styleLine(line.slice(1))
+					? ` ${styleLine(line.slice(1))}`
 					: styleLine(line);
 				const fullLine =
 					styledLine + ' '.repeat(Math.max(minWidth - strLength(styledLine) - emptySlots, 0));
