@@ -1,18 +1,18 @@
-import Prompt, { type State } from '../prompts/prompt';
-import type { TemplateOptions } from './types';
-import * as S from './symbols';
-import color from 'picocolors';
+import color from "picocolors";
+import Prompt, { type State } from "../prompts/prompt";
+import * as S from "./symbols";
+import type { TemplateOptions } from "./types";
 
 const symbol = (state: State) => {
 	switch (state) {
-		case 'initial':
-		case 'active':
+		case "initial":
+		case "active":
 			return color.cyan(S.STEP_ACTIVE);
-		case 'cancel':
+		case "cancel":
 			return color.red(S.STEP_CANCEL);
-		case 'error':
+		case "error":
 			return color.yellow(S.STEP_ERROR);
-		case 'submit':
+		case "submit":
 			return color.green(S.STEP_SUBMIT);
 	}
 };
@@ -32,16 +32,16 @@ export function template(data: TemplateOptions): string {
 				start: color.gray(S.BAR),
 			},
 		}),
-	].join('\n');
+	].join("\n");
 
 	const placeholder = data.placeholder
 		? color.inverse(data.placeholder[0]) + color.dim(data.placeholder.slice(1))
-		: color.inverse(color.hidden('_'));
+		: color.inverse(color.hidden("_"));
 
-	const value = data.value ?? '';
+	const value = data.value ?? "";
 
 	switch (ctx.state) {
-		case 'cancel':
+		case "cancel":
 			return [
 				title,
 				format(value, {
@@ -50,9 +50,9 @@ export function template(data: TemplateOptions): string {
 						style: (line) => color.strikethrough(color.dim(line)),
 					},
 				}),
-			].join('\n');
+			].join("\n");
 
-		case 'error':
+		case "error":
 			return [
 				title,
 				format(value, {
@@ -70,9 +70,9 @@ export function template(data: TemplateOptions): string {
 							start: color.yellow(S.BAR_END),
 						},
 					}),
-			].join('\n');
+			].join("\n");
 
-		case 'submit':
+		case "submit":
 			return [
 				title,
 				format(value, {
@@ -81,7 +81,7 @@ export function template(data: TemplateOptions): string {
 						style: color.dim,
 					},
 				}),
-			].join('\n');
+			].join("\n");
 
 		default:
 			return [
@@ -94,12 +94,17 @@ export function template(data: TemplateOptions): string {
 						start: color.cyan(S.BAR),
 					},
 				}),
-				format(data.placeholder && !data.value ? placeholder : data.valueWithCursor ?? value, {
-					default: {
-						start: color.cyan(S.BAR),
-					},
-				}),
+				format(
+					data.placeholder && !data.value
+						? placeholder
+						: data.valueWithCursor ?? value,
+					{
+						default: {
+							start: color.cyan(S.BAR),
+						},
+					}
+				),
 				color.cyan(S.BAR_END),
-			].join('\n');
+			].join("\n");
 	}
 }
