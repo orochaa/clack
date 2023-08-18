@@ -20,6 +20,8 @@ import { cursor, erase } from "sisteransi";
 export { isCancel } from '@clack/core';
 export { updateSettings, type ClackSettings } from '@clack/core';
 
+import { defaultTheme, S } from '@clack/core/themes';
+
 const unicode = isUnicodeSupported();
 const s = (c: string, fallback: string) => (unicode ? c : fallback);
 
@@ -241,7 +243,7 @@ export interface PasswordOptions {
 export const password = (opts: PasswordOptions) => {
 	return new PasswordPrompt({
 		validate: opts.validate,
-		mask: opts.mask ?? S_PASSWORD_MASK,
+		mask: opts.mask ?? S.PASSWORD_MASK,
 		render() {
 			return applyTheme({
 				ctx: this,
@@ -481,7 +483,7 @@ export const multiselect = <Value>(opts: MultiSelectOptions<Value>) => {
 		if (state === "submitted") {
 			return `${color.dim(label)}`;
 		}
-		return `${color.dim(S_CHECKBOX_INACTIVE)} ${color.dim(label)}`;
+		return `${color.dim(S.CHECKBOX_INACTIVE)} ${color.dim(label)}`;
 	};
 
 	return new MultiSelectPrompt({
@@ -726,7 +728,7 @@ export const groupMultiselect = <Value>(
 							}
 							return opt(option, active ? "active" : "inactive", options);
 						})
-						.join(`\n${color.yellow(S_BAR)}  `)}\n${footer}\n`;
+						.join(`\n${color.yellow(S.BAR)}  `)}\n${footer}\n`;
 				}
 				default: {
 					return `${title}\n${color.cyan(S_BAR)}  ${this.options
@@ -755,7 +757,7 @@ export const groupMultiselect = <Value>(
 							}
 							return opt(option, active ? "active" : "inactive", options);
 						})
-						.join(`\n${color.cyan(S_BAR)}  `)}\n${color.cyan(S_BAR_END)}\n`;
+						.join(`\n${color.cyan(S.BAR)}  `)}\n${color.cyan(S.BAR_END)}\n`;
 				}
 			}
 		},
@@ -984,7 +986,7 @@ export const spinner = () => {
 		clearPrevMessage();
 		const step =
 			code === 0
-				? color.green(S_STEP_SUBMIT)
+				? color.green(S.STEP_SUBMIT)
 				: code === 1
 				? color.red(S_STEP_CANCEL)
 				: color.red(S_STEP_ERROR);
