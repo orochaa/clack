@@ -1,5 +1,5 @@
-import Prompt, { State } from '../prompts/prompt';
-import { TemplateOptions } from './types';
+import Prompt, { type State } from '../prompts/prompt';
+import type { TemplateOptions } from './types';
 import * as S from './symbols';
 import color from 'picocolors';
 

@@ -1,4 +1,4 @@
-import Prompt from '../prompts/prompt';
+import type Prompt from '../prompts/prompt';
 
 export interface TemplateOptions {
 	ctx: Omit<Prompt, 'prompt'>;
