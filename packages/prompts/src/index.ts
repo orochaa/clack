@@ -20,42 +20,42 @@ export { isCancel, setGlobalAliases } from "@clack/core";
 const unicode = isUnicodeSupported();
 const s = (c: string, fallback: string) => (unicode ? c : fallback);
 
-const S_STEP_ACTIVE = s('◆', '*');
-const S_STEP_CANCEL = s('■', 'x');
-const S_STEP_ERROR = s('▲', 'x');
-const S_STEP_SUBMIT = s('◇', 'o');
+const S_STEP_ACTIVE = s("◆", "*");
+const S_STEP_CANCEL = s("■", "x");
+const S_STEP_ERROR = s("▲", "x");
+const S_STEP_SUBMIT = s("◇", "o");
 
-const S_BAR_START = s('┌', 'T');
-const S_BAR = s('│', '|');
-const S_BAR_END = s('└', '—');
+const S_BAR_START = s("┌", "T");
+const S_BAR = s("│", "|");
+const S_BAR_END = s("└", "—");
 
-const S_RADIO_ACTIVE = s('●', '>');
-const S_RADIO_INACTIVE = s('○', ' ');
-const S_CHECKBOX_ACTIVE = s('◻', '[•]');
-const S_CHECKBOX_SELECTED = s('◼', '[+]');
-const S_CHECKBOX_INACTIVE = s('◻', '[ ]');
-const S_PASSWORD_MASK = s('▪', '•');
+const S_RADIO_ACTIVE = s("●", ">");
+const S_RADIO_INACTIVE = s("○", " ");
+const S_CHECKBOX_ACTIVE = s("◻", "[•]");
+const S_CHECKBOX_SELECTED = s("◼", "[+]");
+const S_CHECKBOX_INACTIVE = s("◻", "[ ]");
+const S_PASSWORD_MASK = s("▪", "•");
 
-const S_BAR_H = s('─', '-');
-const S_CORNER_TOP_RIGHT = s('╮', '+');
-const S_CONNECT_LEFT = s('├', '+');
-const S_CORNER_BOTTOM_RIGHT = s('╯', '+');
+const S_BAR_H = s("─", "-");
+const S_CORNER_TOP_RIGHT = s("╮", "+");
+const S_CONNECT_LEFT = s("├", "+");
+const S_CORNER_BOTTOM_RIGHT = s("╯", "+");
 
-const S_INFO = s('●', '•');
-const S_SUCCESS = s('◆', '*');
-const S_WARN = s('▲', '!');
-const S_ERROR = s('■', 'x');
+const S_INFO = s("●", "•");
+const S_SUCCESS = s("◆", "*");
+const S_WARN = s("▲", "!");
+const S_ERROR = s("■", "x");
 
 const symbol = (state: State) => {
 	switch (state) {
-		case 'initial':
-		case 'active':
+		case "initial":
+		case "active":
 			return color.cyan(S_STEP_ACTIVE);
-		case 'cancel':
+		case "cancel":
 			return color.red(S_STEP_CANCEL);
-		case 'error':
+		case "error":
 			return color.yellow(S_STEP_ERROR);
-		case 'submit':
+		case "submit":
 			return color.green(S_STEP_SUBMIT);
 	}
 };
@@ -107,7 +107,7 @@ const limitOptions = <TOption>(
 };
 
 interface ThemeParams {
-	ctx: Omit<Prompt, 'prompt'>;
+	ctx: Omit<Prompt, "prompt">;
 	message: string;
 	value: string;
 	valueWithCursor: string | undefined;
@@ -128,16 +128,16 @@ function applyTheme(data: ThemeParams): string {
 				start: color.gray(S_BAR),
 			},
 		}),
-	].join('\n');
+	].join("\n");
 
 	const placeholder = data.placeholder
 		? color.inverse(data.placeholder[0]) + color.dim(data.placeholder.slice(1))
-		: color.inverse(color.hidden('_'));
+		: color.inverse(color.hidden("_"));
 
-	const value = data.value ?? '';
+	const value = data.value ?? "";
 
 	switch (ctx.state) {
-		case 'cancel':
+		case "cancel":
 			return [
 				title,
 				format(value, {
@@ -146,9 +146,9 @@ function applyTheme(data: ThemeParams): string {
 						style: (line) => color.strikethrough(color.dim(line)),
 					},
 				}),
-			].join('\n');
+			].join("\n");
 
-		case 'error':
+		case "error":
 			return [
 				title,
 				format(value, {
@@ -166,9 +166,9 @@ function applyTheme(data: ThemeParams): string {
 							start: color.yellow(S_BAR_END),
 						},
 					}),
-			].join('\n');
+			].join("\n");
 
-		case 'submit':
+		case "submit":
 			return [
 				title,
 				format(value, {
@@ -177,7 +177,7 @@ function applyTheme(data: ThemeParams): string {
 						style: color.dim,
 					},
 				}),
-			].join('\n');
+			].join("\n");
 
 		default:
 			return [
@@ -190,13 +190,18 @@ function applyTheme(data: ThemeParams): string {
 						start: color.cyan(S_BAR),
 					},
 				}),
-				format(data.placeholder && !data.value ? placeholder : data.valueWithCursor ?? value, {
-					default: {
-						start: color.cyan(S_BAR),
-					},
-				}),
+				format(
+					data.placeholder && !data.value
+						? placeholder
+						: data.valueWithCursor ?? value,
+					{
+						default: {
+							start: color.cyan(S_BAR),
+						},
+					}
+				),
 				color.cyan(S_BAR_END),
-			].join('\n');
+			].join("\n");
 	}
 }
 
@@ -373,34 +378,29 @@ export const selectKey = <Value extends string>(opts: SelectOptions<Value>) => {
 		options: opts.options,
 		initialValue: opts.initialValue,
 		render() {
-			let value: string;
+			const title = `${color.gray(S_BAR)}\n${symbol(this.state)} ${
+				opts.message
+			}\n`;
 
 			switch (this.state) {
 				case "submit":
-					value = opt(
+					return `${title}${color.gray(S_BAR)}  ${opt(
 						// biome-ignore lint/style/noNonNullAssertion: <explanation>
 						this.options.find((opt) => opt.value === this.value)!,
 						"selected"
-					);
-					break
+					)}`;
 				case "cancel":
-					value = opt(this.options[0], "cancelled");
-					break;
+					return `${title}${color.gray(S_BAR)}  ${opt(
+						this.options[0],
+						"cancelled"
+					)}\n${color.gray(S_BAR)}`;
 				default:
-					value = this.options
+					return `${title}${color.cyan(S_BAR)}  ${this.options
 						.map((option, i) =>
 							opt(option, i === this.cursor ? "active" : "inactive")
 						)
-						.join("\n");
-					break;
+						.join(`\n${color.cyan(S.BAR)}  `)}\n${color.cyan(S.BAR_END)}\n`;
 			}
-
-			return applyTheme({
-				ctx: this,
-				message: opts.message,
-				value,
-				valueWithCursor: undefined,
-			});
 		},
 	}).prompt() as Promise<Value | symbol>;
 };
