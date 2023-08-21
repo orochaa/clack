@@ -432,10 +432,8 @@ export const selectKey = <Value extends string>(opts: SelectOptions<Value>) => {
 					)}\n${color.gray(S_BAR)}`;
 				default:
 					return `${title}${color.cyan(S_BAR)}  ${this.options
-						.map((option, i) =>
-							opt(option, i === this.cursor ? "active" : "inactive")
-						)
-						.join(`\n${color.cyan(S.BAR)}  `)}\n${color.cyan(S.BAR_END)}\n`;
+						.map((option, i) => opt(option, i === this.cursor ? 'active' : 'inactive'))
+						.join(`\n${color.cyan(S_BAR)}  `)}\n${color.cyan(S_BAR_END)}\n`;
 			}
 		},
 	}).prompt() as Promise<Value | symbol>;
