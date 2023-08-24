@@ -11,6 +11,7 @@ import {
 	TextPrompt,
 	block,
 	isCancel,
+	strLength,
 } from "@clack/core";
 import isUnicodeSupported from "is-unicode-supported";
 import color from "picocolors";
@@ -245,7 +246,7 @@ export const password = (opts: PasswordOptions) => {
 			return applyTheme({
 				ctx: this,
 				message: opts.message,
-				value: this.value,
+				value: this.valueWithCursor,
 				valueWithCursor: this.valueWithCursor,
 			});
 		},
@@ -432,7 +433,9 @@ export const selectKey = <Value extends string>(opts: SelectOptions<Value>) => {
 					)}\n${color.gray(S_BAR)}`;
 				default:
 					return `${title}${color.cyan(S_BAR)}  ${this.options
-						.map((option, i) => opt(option, i === this.cursor ? 'active' : 'inactive'))
+						.map((option, i) =>
+							opt(option, i === this.cursor ? "active" : "inactive")
+						)
 						.join(`\n${color.cyan(S_BAR)}  `)}\n${color.cyan(S_BAR_END)}\n`;
 			}
 		},
@@ -759,18 +762,6 @@ export const groupMultiselect = <Value>(
 	}).prompt() as Promise<Value[] | symbol>;
 };
 
-const strLength = (str: string) => {
-	if (!str) return 0;
-
-	const colorCodeRegex = /\x1B\[[0-9;]*[mG]/g;
-	const arr = [...strip(str.replace(colorCodeRegex, ""))];
-	let len = 0;
-
-	for (const char of arr) {
-		len += char.charCodeAt(0) > 127 || char.charCodeAt(0) === 94 ? 2 : 1;
-	}
-	return len;
-};
 export const note = (message = "", title = "") => {
 	const maxWidth = Math.floor((process.stdout.columns ?? 80) * 0.8);
 	const lines = format(message, {
