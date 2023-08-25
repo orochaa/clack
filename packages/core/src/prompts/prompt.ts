@@ -199,11 +199,13 @@ export default class Prompt {
 		if (key?.name === 'return') {
 			if (this.opts.validate) {
 				this.state = 'validate';
+				const value = this.value
 				const validation = Promise.resolve(this.opts.validate(this.value));
 				// Delay rendering of validation state.
 				// If validation resolves first, render will be cancelled.
 				await raceTimeout(validation, {
 					onTimeout: () => {
+						this.value = value
 						this.render();
 					},
 					delay: VALIDATION_STATE_DELAY,
@@ -214,6 +216,7 @@ export default class Prompt {
 					this.state = 'error';
 					this.rl.write(this.value);
 				}
+				this.value = value
 			}
 			if (this.state !== 'error') {
 				this.state = 'submit';
