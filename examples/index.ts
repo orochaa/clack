@@ -21,7 +21,7 @@ import color from 'picocolors';
 
 	try {
 		// Run example
-		process.stdout.write('\n')
+		process.stdout.write('\n');
 		await import(`./${example}.ts`);
 	} catch (error) {
 		// Don't crash on error
