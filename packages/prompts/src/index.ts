@@ -8,7 +8,7 @@ import {
 	SelectKeyPrompt,
 	SelectPrompt,
 	State,
-	TextPrompt,
+	TextPrompt
 } from '@clack/core';
 import isUnicodeSupported from 'is-unicode-supported';
 import color from 'picocolors';
@@ -171,23 +171,28 @@ export const confirm = (opts: ConfirmOptions) => {
 type Primitive = Readonly<string | boolean | number>;
 
 type Option<Value> = Value extends Primitive
-	? { value: Value; label?: string; hint?: string; disabled?: boolean }
-	: { value: Value; label: string; hint?: string; disabled?: boolean };
+	? { value: Value; label?: string; hint?: string }
+	: { value: Value; label: string; hint?: string };
+
+type DisableableOption<Value> = Option<Value> & { disabled?: boolean };
 
 export interface SelectOptions<Value> {
 	message: string;
-	options: Option<Value>[];
+	options: DisableableOption<Value>[];
 	initialValue?: Value;
 	maxItems?: number;
 }
 
 export const select = <Value>(opts: SelectOptions<Value>) => {
-	const opt = (option: Option<Value>, state: 'inactive' | 'active' | 'selected' | 'cancelled') => {
+	const opt = (
+		option: DisableableOption<Value>,
+		state: 'inactive' | 'active' | 'selected' | 'cancelled'
+	) => {
 		const label = option.label ?? String(option.value);
 		if (state === 'active') {
-			return `${color.green(S_RADIO_ACTIVE)} ${option.disabled ? color.dim(label) : label} ${
-				option.hint ? color.dim(`(${option.hint})`) : ''
-			}`;
+			return `${
+				option.disabled ? color.dim(S_RADIO_ACTIVE) : color.green(S_RADIO_ACTIVE)
+			} ${label} ${option.hint ? color.dim(`(${option.hint})`) : ''}`;
 		} else if (state === 'selected') {
 			return `${color.dim(label)}`;
 		} else if (state === 'cancelled') {
@@ -207,7 +212,7 @@ export const select = <Value>(opts: SelectOptions<Value>) => {
 		render() {
 			const title = `${color.gray(S_BAR)}\n${symbol(this.state)}  ${opts.message}\n`;
 
-			const limitOptions = (options: Option<Value>[]): string[] => {
+			const limitOptions = (options: DisableableOption<Value>[]): string[] => {
 				// We clamp to minimum 5 because anything less doesn't make sense UX wise
 				const maxItems = opts.maxItems === undefined ? Infinity : Math.max(opts.maxItems, 5);
 				let slidingWindowLocation = 0;
@@ -306,29 +311,31 @@ export const selectKey = <Value extends string>(opts: SelectOptions<Value>) => {
 
 export interface MultiSelectOptions<Value> {
 	message: string;
-	options: Option<Value>[];
+	options: DisableableOption<Value>[];
 	initialValues?: Value[];
 	required?: boolean;
 	cursorAt?: Value;
 }
 export const multiselect = <Value>(opts: MultiSelectOptions<Value>) => {
 	const opt = (
-		option: Option<Value>,
+		option: DisableableOption<Value>,
 		state: 'inactive' | 'active' | 'selected' | 'active-selected' | 'submitted' | 'cancelled'
 	) => {
 		const label = option.label ?? String(option.value);
 		if (state === 'active') {
-			return `${color.cyan(S_CHECKBOX_ACTIVE)} ${label} ${
-				option.hint ? color.dim(`(${option.hint})`) : ''
-			}`;
+			return `${
+				option.disabled ? color.dim(S_CHECKBOX_ACTIVE) : color.cyan(S_CHECKBOX_ACTIVE)
+			} ${label} ${option.hint ? color.dim(`(${option.hint})`) : ''}`;
 		} else if (state === 'selected') {
-			return `${color.green(S_CHECKBOX_SELECTED)} ${color.dim(label)}`;
+			return `${
+				option.disabled ? color.dim(S_CHECKBOX_SELECTED) : color.green(S_CHECKBOX_SELECTED)
+			} ${color.dim(label)}`;
 		} else if (state === 'cancelled') {
 			return `${color.strikethrough(color.dim(label))}`;
 		} else if (state === 'active-selected') {
-			return `${color.green(S_CHECKBOX_SELECTED)} ${label} ${
-				option.hint ? color.dim(`(${option.hint})`) : ''
-			}`;
+			return `${
+				option.disabled ? color.dim(S_CHECKBOX_SELECTED) : color.green(S_CHECKBOX_SELECTED)
+			} ${label} ${option.hint ? color.dim(`(${option.hint})`) : ''}`;
 		} else if (state === 'submitted') {
 			return `${color.dim(label)}`;
 		}
@@ -341,7 +348,7 @@ export const multiselect = <Value>(opts: MultiSelectOptions<Value>) => {
 		required: opts.required ?? true,
 		cursorAt: opts.cursorAt,
 		validate(selected: Value[]) {
-			if (this.required && selected.length === 0)
+			if (this.required && selected.length === 0) {
 				return `Please select at least one option.\n${color.reset(
 					color.dim(
 						`Press ${color.gray(color.bgWhite(color.inverse(' space ')))} to select, ${color.gray(
@@ -349,6 +356,20 @@ export const multiselect = <Value>(opts: MultiSelectOptions<Value>) => {
 						)} to submit`
 					)
 				)}`;
+			}
+			const disabledOptions = opts.options
+				.map((option) => {
+					if (selected.includes(option.value) && option.disabled) {
+						return option.label ?? option.value;
+					}
+					return undefined;
+				})
+				.filter(Boolean);
+			if (disabledOptions.length) {
+				return `${disabledOptions.join(', ')} ${
+					disabledOptions.length > 1 ? 'options are' : 'option is'
+				} disabled.`;
+			}
 		},
 		render() {
 			let title = `${color.gray(S_BAR)}\n${symbol(this.state)}  ${opts.message}\n`;
