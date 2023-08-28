@@ -8,7 +8,7 @@ import {
 	SelectKeyPrompt,
 	SelectPrompt,
 	State,
-	TextPrompt
+	TextPrompt,
 } from '@clack/core';
 import isUnicodeSupported from 'is-unicode-supported';
 import color from 'picocolors';
@@ -171,8 +171,8 @@ export const confirm = (opts: ConfirmOptions) => {
 type Primitive = Readonly<string | boolean | number>;
 
 type Option<Value> = Value extends Primitive
-	? { value: Value; label?: string; hint?: string }
-	: { value: Value; label: string; hint?: string };
+	? { value: Value; label?: string; hint?: string; disabled?: boolean }
+	: { value: Value; label: string; hint?: string; disabled?: boolean };
 
 export interface SelectOptions<Value> {
 	message: string;
@@ -185,7 +185,7 @@ export const select = <Value>(opts: SelectOptions<Value>) => {
 	const opt = (option: Option<Value>, state: 'inactive' | 'active' | 'selected' | 'cancelled') => {
 		const label = option.label ?? String(option.value);
 		if (state === 'active') {
-			return `${color.green(S_RADIO_ACTIVE)} ${label} ${
+			return `${color.green(S_RADIO_ACTIVE)} ${option.disabled ? color.dim(label) : label} ${
 				option.hint ? color.dim(`(${option.hint})`) : ''
 			}`;
 		} else if (state === 'selected') {
@@ -196,13 +196,45 @@ export const select = <Value>(opts: SelectOptions<Value>) => {
 		return `${color.dim(S_RADIO_INACTIVE)} ${color.dim(label)}`;
 	};
 
-	let slidingWindowLocation = 0;
-
 	return new SelectPrompt({
 		options: opts.options,
 		initialValue: opts.initialValue,
+		validate(value) {
+			if (this.options.find((o) => o.value === value)?.disabled) {
+				return 'Selected option is disabled.';
+			}
+		},
 		render() {
 			const title = `${color.gray(S_BAR)}\n${symbol(this.state)}  ${opts.message}\n`;
+
+			const limitOptions = (options: Option<Value>[]): string[] => {
+				// We clamp to minimum 5 because anything less doesn't make sense UX wise
+				const maxItems = opts.maxItems === undefined ? Infinity : Math.max(opts.maxItems, 5);
+				let slidingWindowLocation = 0;
+
+				if (this.cursor >= slidingWindowLocation + maxItems - 3) {
+					slidingWindowLocation = Math.max(
+						Math.min(this.cursor - maxItems + 3, options.length - maxItems),
+						0
+					);
+				} else if (this.cursor < slidingWindowLocation + 2) {
+					slidingWindowLocation = Math.max(this.cursor - 2, 0);
+				}
+
+				const shouldRenderTopEllipsis = maxItems < options.length && slidingWindowLocation > 0;
+				const shouldRenderBottomEllipsis =
+					maxItems < options.length && slidingWindowLocation + maxItems < options.length;
+
+				return options
+					.slice(slidingWindowLocation, slidingWindowLocation + maxItems)
+					.map((option, i, arr) => {
+						const isTopLimit = i === 0 && shouldRenderTopEllipsis;
+						const isBottomLimit = i === arr.length - 1 && shouldRenderBottomEllipsis;
+						return isTopLimit || isBottomLimit
+							? color.dim('...')
+							: opt(option, i + slidingWindowLocation === this.cursor ? 'active' : 'inactive');
+					});
+			};
 
 			switch (this.state) {
 				case 'submit':
@@ -212,39 +244,14 @@ export const select = <Value>(opts: SelectOptions<Value>) => {
 						this.options[this.cursor],
 						'cancelled'
 					)}\n${color.gray(S_BAR)}`;
+				case 'error':
+					return `${title}${color.yellow(S_BAR)}  ${limitOptions(this.options).join(
+						`\n${color.yellow(S_BAR)}  `
+					)}\n${color.yellow(S_BAR_END)}  ${color.yellow(this.error)}\n`;
 				default: {
-					// We clamp to minimum 5 because anything less doesn't make sense UX wise
-					const maxItems = opts.maxItems === undefined ? Infinity : Math.max(opts.maxItems, 5);
-					if (this.cursor >= slidingWindowLocation + maxItems - 3) {
-						slidingWindowLocation = Math.max(
-							Math.min(this.cursor - maxItems + 3, this.options.length - maxItems),
-							0
-						);
-					} else if (this.cursor < slidingWindowLocation + 2) {
-						slidingWindowLocation = Math.max(this.cursor - 2, 0);
-					}
-
-					const shouldRenderTopEllipsis =
-						maxItems < this.options.length && slidingWindowLocation > 0;
-					const shouldRenderBottomEllipsis =
-						maxItems < this.options.length &&
-						slidingWindowLocation + maxItems < this.options.length;
-
-					return `${title}${color.cyan(S_BAR)}  ${this.options
-						.slice(slidingWindowLocation, slidingWindowLocation + maxItems)
-						.map((option, i, arr) => {
-							if (i === 0 && shouldRenderTopEllipsis) {
-								return color.dim('...');
-							} else if (i === arr.length - 1 && shouldRenderBottomEllipsis) {
-								return color.dim('...');
-							} else {
-								return opt(
-									option,
-									i + slidingWindowLocation === this.cursor ? 'active' : 'inactive'
-								);
-							}
-						})
-						.join(`\n${color.cyan(S_BAR)}  `)}\n${color.cyan(S_BAR_END)}\n`;
+					return `${title}${color.cyan(S_BAR)}  ${limitOptions(this.options).join(
+						`\n${color.cyan(S_BAR)}  `
+					)}\n${color.cyan(S_BAR_END)}\n`;
 				}
 			}
 		},
