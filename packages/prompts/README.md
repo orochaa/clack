@@ -220,5 +220,22 @@ const results = await p
     process.exit(0);
   })
   .run();
+
 console.log(results);
+```
+
+### Tasks
+
+Execute multiple tasks in spinners.
+
+```js
+await p.tasks([
+  {
+    title: 'Installing via npm',
+    task: async (message) => {
+      // Do installation here
+      return 'Installed via npm';
+    },
+  },
+]);
 ```

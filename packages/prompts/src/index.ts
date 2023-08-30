@@ -8,7 +8,7 @@ import {
 	SelectKeyPrompt,
 	SelectPrompt,
 	State,
-	TextPrompt,
+	TextPrompt
 } from '@clack/core';
 import isUnicodeSupported from 'is-unicode-supported';
 import color from 'picocolors';
@@ -56,6 +56,41 @@ const symbol = (state: State) => {
 		case 'submit':
 			return color.green(S_STEP_SUBMIT);
 	}
+};
+
+interface LimitOptionsParams<TOption> {
+	options: TOption[];
+	maxItems: number | undefined;
+	cursor: number;
+	style: (option: TOption, active: boolean) => string;
+}
+
+const limitOptions = <TOption>(params: LimitOptionsParams<TOption>): string[] => {
+	const { cursor, options, style } = params;
+
+	// We clamp to minimum 5 because anything less doesn't make sense UX wise
+	const maxItems = params.maxItems === undefined ? Infinity : Math.max(params.maxItems, 5);
+	let slidingWindowLocation = 0;
+
+	if (cursor >= slidingWindowLocation + maxItems - 3) {
+		slidingWindowLocation = Math.max(Math.min(cursor - maxItems + 3, options.length - maxItems), 0);
+	} else if (cursor < slidingWindowLocation + 2) {
+		slidingWindowLocation = Math.max(cursor - 2, 0);
+	}
+
+	const shouldRenderTopEllipsis = maxItems < options.length && slidingWindowLocation > 0;
+	const shouldRenderBottomEllipsis =
+		maxItems < options.length && slidingWindowLocation + maxItems < options.length;
+
+	return options
+		.slice(slidingWindowLocation, slidingWindowLocation + maxItems)
+		.map((option, i, arr) => {
+			const isTopLimit = i === 0 && shouldRenderTopEllipsis;
+			const isBottomLimit = i === arr.length - 1 && shouldRenderBottomEllipsis;
+			return isTopLimit || isBottomLimit
+				? color.dim('...')
+				: style(option, i + slidingWindowLocation === cursor);
+		});
 };
 
 export interface TextOptions {
@@ -184,19 +219,19 @@ export interface SelectOptions<Value> {
 export const select = <Value>(opts: SelectOptions<Value>) => {
 	const opt = (option: Option<Value>, state: 'inactive' | 'active' | 'selected' | 'cancelled') => {
 		const label = option.label ?? String(option.value);
-		if (state === 'active') {
-			return `${color.green(S_RADIO_ACTIVE)} ${label} ${
-				option.hint ? color.dim(`(${option.hint})`) : ''
-			}`;
-		} else if (state === 'selected') {
-			return `${color.dim(label)}`;
-		} else if (state === 'cancelled') {
-			return `${color.strikethrough(color.dim(label))}`;
+		switch (state) {
+			case 'selected':
+				return `${color.dim(label)}`;
+			case 'active':
+				return `${color.green(S_RADIO_ACTIVE)} ${label} ${
+					option.hint ? color.dim(`(${option.hint})`) : ''
+				}`;
+			case 'cancelled':
+				return `${color.strikethrough(color.dim(label))}`;
+			default:
+				return `${color.dim(S_RADIO_INACTIVE)} ${color.dim(label)}`;
 		}
-		return `${color.dim(S_RADIO_INACTIVE)} ${color.dim(label)}`;
 	};
-
-	let slidingWindowLocation = 0;
 
 	return new SelectPrompt({
 		options: opts.options,
@@ -213,38 +248,12 @@ export const select = <Value>(opts: SelectOptions<Value>) => {
 						'cancelled'
 					)}\n${color.gray(S_BAR)}`;
 				default: {
-					// We clamp to minimum 5 because anything less doesn't make sense UX wise
-					const maxItems = opts.maxItems === undefined ? Infinity : Math.max(opts.maxItems, 5);
-					if (this.cursor >= slidingWindowLocation + maxItems - 3) {
-						slidingWindowLocation = Math.max(
-							Math.min(this.cursor - maxItems + 3, this.options.length - maxItems),
-							0
-						);
-					} else if (this.cursor < slidingWindowLocation + 2) {
-						slidingWindowLocation = Math.max(this.cursor - 2, 0);
-					}
-
-					const shouldRenderTopEllipsis =
-						maxItems < this.options.length && slidingWindowLocation > 0;
-					const shouldRenderBottomEllipsis =
-						maxItems < this.options.length &&
-						slidingWindowLocation + maxItems < this.options.length;
-
-					return `${title}${color.cyan(S_BAR)}  ${this.options
-						.slice(slidingWindowLocation, slidingWindowLocation + maxItems)
-						.map((option, i, arr) => {
-							if (i === 0 && shouldRenderTopEllipsis) {
-								return color.dim('...');
-							} else if (i === arr.length - 1 && shouldRenderBottomEllipsis) {
-								return color.dim('...');
-							} else {
-								return opt(
-									option,
-									i + slidingWindowLocation === this.cursor ? 'active' : 'inactive'
-								);
-							}
-						})
-						.join(`\n${color.cyan(S_BAR)}  `)}\n${color.cyan(S_BAR_END)}\n`;
+					return `${title}${color.cyan(S_BAR)}  ${limitOptions({
+						cursor: this.cursor,
+						options: this.options,
+						maxItems: opts.maxItems,
+						style: (item, active) => opt(item, active ? 'active' : 'inactive'),
+					}).join(`\n${color.cyan(S_BAR)}  `)}\n${color.cyan(S_BAR_END)}\n`;
 				}
 			}
 		},
@@ -301,6 +310,7 @@ export interface MultiSelectOptions<Value> {
 	message: string;
 	options: Option<Value>[];
 	initialValues?: Value[];
+	maxItems?: number;
 	required?: boolean;
 	cursorAt?: Value;
 }
@@ -346,6 +356,17 @@ export const multiselect = <Value>(opts: MultiSelectOptions<Value>) => {
 		render() {
 			let title = `${color.gray(S_BAR)}\n${symbol(this.state)}  ${opts.message}\n`;
 
+			const styleOption = (option: Option<Value>, active: boolean) => {
+				const selected = this.value.includes(option.value);
+				if (active && selected) {
+					return opt(option, 'active-selected');
+				}
+				if (selected) {
+					return opt(option, 'selected');
+				}
+				return opt(option, active ? 'active' : 'inactive');
+			};
+
 			switch (this.state) {
 				case 'submit': {
 					return `${title}${color.gray(S_BAR)}  ${
@@ -375,38 +396,24 @@ export const multiselect = <Value>(opts: MultiSelectOptions<Value>) => {
 						title +
 						color.yellow(S_BAR) +
 						'  ' +
-						this.options
-							.map((option, i) => {
-								const selected = this.value.includes(option.value);
-								const active = i === this.cursor;
-								if (active && selected) {
-									return opt(option, 'active-selected');
-								}
-								if (selected) {
-									return opt(option, 'selected');
-								}
-								return opt(option, active ? 'active' : 'inactive');
-							})
-							.join(`\n${color.yellow(S_BAR)}  `) +
+						limitOptions({
+							options: this.options,
+							cursor: this.cursor,
+							maxItems: opts.maxItems,
+							style: styleOption,
+						}).join(`\n${color.yellow(S_BAR)}  `) +
 						'\n' +
 						footer +
 						'\n'
 					);
 				}
 				default: {
-					return `${title}${color.cyan(S_BAR)}  ${this.options
-						.map((option, i) => {
-							const selected = this.value.includes(option.value);
-							const active = i === this.cursor;
-							if (active && selected) {
-								return opt(option, 'active-selected');
-							}
-							if (selected) {
-								return opt(option, 'selected');
-							}
-							return opt(option, active ? 'active' : 'inactive');
-						})
-						.join(`\n${color.cyan(S_BAR)}  `)}\n${color.cyan(S_BAR_END)}\n`;
+					return `${title}${color.cyan(S_BAR)}  ${limitOptions({
+						options: this.options,
+						cursor: this.cursor,
+						maxItems: opts.maxItems,
+						style: styleOption,
+					}).join(`\n${color.cyan(S_BAR)}  `)}\n${color.cyan(S_BAR_END)}\n`;
 				}
 			}
 		},
@@ -632,9 +639,36 @@ export const spinner = () => {
 	const delay = unicode ? 80 : 120;
 
 	let unblock: () => void;
-	let loop: NodeJS.Timer;
+	let loop: NodeJS.Timeout;
 	let isSpinnerActive: boolean = false;
 	let _message: string = '';
+
+	const handleExit = (code: number) => {
+		const msg = code > 1 ? 'Something went wrong' : 'Canceled';
+		if (isSpinnerActive) stop(msg, code);
+	};
+
+	const errorEventHandler = () => handleExit(2);
+	const signalEventHandler = () => handleExit(1);
+
+	const registerHooks = () => {
+		// Reference: https://nodejs.org/api/process.html#event-uncaughtexception
+		process.on('uncaughtExceptionMonitor', errorEventHandler);
+		// Reference: https://nodejs.org/api/process.html#event-unhandledrejection
+		process.on('unhandledRejection', errorEventHandler);
+		// Reference Signal Events: https://nodejs.org/api/process.html#signal-events
+		process.on('SIGINT', signalEventHandler);
+		process.on('SIGTERM', signalEventHandler);
+		process.on('exit', handleExit);
+	};
+
+	const clearHooks = () => {
+		process.removeListener('uncaughtExceptionMonitor', errorEventHandler);
+		process.removeListener('unhandledRejection', errorEventHandler);
+		process.removeListener('SIGINT', signalEventHandler);
+		process.removeListener('SIGTERM', signalEventHandler);
+		process.removeListener('exit', handleExit);
+	};
 
 	const start = (msg: string = ''): void => {
 		isSpinnerActive = true;
@@ -643,6 +677,7 @@ export const spinner = () => {
 		process.stdout.write(`${color.gray(S_BAR)}\n`);
 		let frameIndex = 0;
 		let dotsTimer = 0;
+		registerHooks();
 		loop = setInterval(() => {
 			const frame = color.magenta(frames[frameIndex]);
 			const loadingDots = '.'.repeat(Math.floor(dotsTimer)).slice(0, 3);
@@ -667,26 +702,13 @@ export const spinner = () => {
 		process.stdout.write(cursor.move(-999, 0));
 		process.stdout.write(erase.down(1));
 		process.stdout.write(`${step}  ${_message}\n`);
+		clearHooks();
 		unblock();
 	};
 
 	const message = (msg: string = ''): void => {
 		_message = msg ?? _message;
 	};
-
-	const handleExit = (code: number) => {
-		const msg = code > 1 ? 'Something went wrong' : 'Canceled';
-		if (isSpinnerActive) stop(msg, code);
-	};
-
-	// Reference: https://nodejs.org/api/process.html#event-uncaughtexception
-	process.on('uncaughtExceptionMonitor', () => handleExit(2));
-	// Reference: https://nodejs.org/api/process.html#event-unhandledrejection
-	process.on('unhandledRejection', () => handleExit(2));
-	// Reference Signal Events: https://nodejs.org/api/process.html#signal-events
-	process.on('SIGINT', () => handleExit(1));
-	process.on('SIGTERM', () => handleExit(1));
-	process.on('exit', handleExit);
 
 	return {
 		start,
@@ -765,7 +787,7 @@ export const group = async <T>(
 type NextWorkflowBuilder<
 	TResults extends Record<string, unknown>,
 	TKey extends string,
-	TResult
+	TResult,
 > = WorkflowBuilder<
 	{
 		[Key in keyof TResults]: Key extends TKey ? TResult : TResults[Key];
@@ -808,4 +830,34 @@ class WorkflowBuilder<TResults extends Record<string, unknown> = {}> {
 
 export const workflow = () => {
 	return new WorkflowBuilder();
+};
+
+export type Task = {
+	/**
+	 * Task title
+	 */
+	title: string;
+	/**
+	 * Task function
+	 */
+	task: (message: (string: string) => void) => string | Promise<string> | void | Promise<void>;
+
+	/**
+	 * If enabled === false the task will be skipped
+	 */
+	enabled?: boolean;
+};
+
+/**
+ * Define a group of tasks to be executed
+ */
+export const tasks = async (tasks: Task[]) => {
+	for (const task of tasks) {
+		if (task.enabled === false) continue;
+
+		const s = spinner();
+		s.start(task.title);
+		const result = await task.task(s.message);
+		s.stop(result || task.title);
+	}
 };
