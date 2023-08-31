@@ -8,7 +8,7 @@ import {
 	SelectKeyPrompt,
 	SelectPrompt,
 	State,
-	TextPrompt
+	TextPrompt,
 } from '@clack/core';
 import isUnicodeSupported from 'is-unicode-supported';
 import color from 'picocolors';
@@ -56,6 +56,41 @@ const symbol = (state: State) => {
 		case 'submit':
 			return color.green(S_STEP_SUBMIT);
 	}
+};
+
+interface LimitOptionsParams<TOption> {
+	options: TOption[];
+	maxItems: number | undefined;
+	cursor: number;
+	style: (option: TOption, active: boolean) => string;
+}
+
+const limitOptions = <TOption>(params: LimitOptionsParams<TOption>): string[] => {
+	const { cursor, options, style } = params;
+
+	// We clamp to minimum 5 because anything less doesn't make sense UX wise
+	const maxItems = params.maxItems === undefined ? Infinity : Math.max(params.maxItems, 5);
+	let slidingWindowLocation = 0;
+
+	if (cursor >= slidingWindowLocation + maxItems - 3) {
+		slidingWindowLocation = Math.max(Math.min(cursor - maxItems + 3, options.length - maxItems), 0);
+	} else if (cursor < slidingWindowLocation + 2) {
+		slidingWindowLocation = Math.max(cursor - 2, 0);
+	}
+
+	const shouldRenderTopEllipsis = maxItems < options.length && slidingWindowLocation > 0;
+	const shouldRenderBottomEllipsis =
+		maxItems < options.length && slidingWindowLocation + maxItems < options.length;
+
+	return options
+		.slice(slidingWindowLocation, slidingWindowLocation + maxItems)
+		.map((option, i, arr) => {
+			const isTopLimit = i === 0 && shouldRenderTopEllipsis;
+			const isBottomLimit = i === arr.length - 1 && shouldRenderBottomEllipsis;
+			return isTopLimit || isBottomLimit
+				? color.dim('...')
+				: style(option, i + slidingWindowLocation === cursor);
+		});
 };
 
 export interface TextOptions {
@@ -189,16 +224,18 @@ export const select = <Value>(opts: SelectOptions<Value>) => {
 		state: 'inactive' | 'active' | 'selected' | 'cancelled'
 	) => {
 		const label = option.label ?? String(option.value);
-		if (state === 'active') {
-			return `${
-				option.disabled ? color.dim(S_RADIO_ACTIVE) : color.green(S_RADIO_ACTIVE)
-			} ${label} ${option.hint ? color.dim(`(${option.hint})`) : ''}`;
-		} else if (state === 'selected') {
-			return `${color.dim(label)}`;
-		} else if (state === 'cancelled') {
-			return `${color.strikethrough(color.dim(label))}`;
+		switch (state) {
+			case 'selected':
+				return `${color.dim(label)}`;
+			case 'active':
+				return `${
+					option.disabled ? color.dim(S_RADIO_ACTIVE) : color.green(S_RADIO_ACTIVE)
+				} ${label} ${option.hint ? color.dim(`(${option.hint})`) : ''}`;
+			case 'cancelled':
+				return `${color.strikethrough(color.dim(label))}`;
+			default:
+				return `${color.dim(S_RADIO_INACTIVE)} ${color.dim(label)}`;
 		}
-		return `${color.dim(S_RADIO_INACTIVE)} ${color.dim(label)}`;
 	};
 
 	return new SelectPrompt({
@@ -212,35 +249,6 @@ export const select = <Value>(opts: SelectOptions<Value>) => {
 		render() {
 			const title = `${color.gray(S_BAR)}\n${symbol(this.state)}  ${opts.message}\n`;
 
-			const limitOptions = (options: DisableableOption<Value>[]): string[] => {
-				// We clamp to minimum 5 because anything less doesn't make sense UX wise
-				const maxItems = opts.maxItems === undefined ? Infinity : Math.max(opts.maxItems, 5);
-				let slidingWindowLocation = 0;
-
-				if (this.cursor >= slidingWindowLocation + maxItems - 3) {
-					slidingWindowLocation = Math.max(
-						Math.min(this.cursor - maxItems + 3, options.length - maxItems),
-						0
-					);
-				} else if (this.cursor < slidingWindowLocation + 2) {
-					slidingWindowLocation = Math.max(this.cursor - 2, 0);
-				}
-
-				const shouldRenderTopEllipsis = maxItems < options.length && slidingWindowLocation > 0;
-				const shouldRenderBottomEllipsis =
-					maxItems < options.length && slidingWindowLocation + maxItems < options.length;
-
-				return options
-					.slice(slidingWindowLocation, slidingWindowLocation + maxItems)
-					.map((option, i, arr) => {
-						const isTopLimit = i === 0 && shouldRenderTopEllipsis;
-						const isBottomLimit = i === arr.length - 1 && shouldRenderBottomEllipsis;
-						return isTopLimit || isBottomLimit
-							? color.dim('...')
-							: opt(option, i + slidingWindowLocation === this.cursor ? 'active' : 'inactive');
-					});
-			};
-
 			switch (this.state) {
 				case 'submit':
 					return `${title}${color.gray(S_BAR)}  ${opt(this.options[this.cursor], 'selected')}`;
@@ -250,13 +258,21 @@ export const select = <Value>(opts: SelectOptions<Value>) => {
 						'cancelled'
 					)}\n${color.gray(S_BAR)}`;
 				case 'error':
-					return `${title}${color.yellow(S_BAR)}  ${limitOptions(this.options).join(
-						`\n${color.yellow(S_BAR)}  `
-					)}\n${color.yellow(S_BAR_END)}  ${color.yellow(this.error)}\n`;
+					return `${title}${color.yellow(S_BAR)}  ${limitOptions({
+						cursor: this.cursor,
+						options: this.options,
+						maxItems: opts.maxItems,
+						style: (item, active) => opt(item, active ? 'active' : 'inactive'),
+					}).join(`\n${color.yellow(S_BAR)}  `)}\n${color.yellow(S_BAR_END)}  ${color.yellow(
+						this.error
+					)}\n`;
 				default: {
-					return `${title}${color.cyan(S_BAR)}  ${limitOptions(this.options).join(
-						`\n${color.cyan(S_BAR)}  `
-					)}\n${color.cyan(S_BAR_END)}\n`;
+					return `${title}${color.cyan(S_BAR)}  ${limitOptions({
+						cursor: this.cursor,
+						options: this.options,
+						maxItems: opts.maxItems,
+						style: (item, active) => opt(item, active ? 'active' : 'inactive'),
+					}).join(`\n${color.cyan(S_BAR)}  `)}\n${color.cyan(S_BAR_END)}\n`;
 				}
 			}
 		},
@@ -313,6 +329,7 @@ export interface MultiSelectOptions<Value> {
 	message: string;
 	options: DisableableOption<Value>[];
 	initialValues?: Value[];
+	maxItems?: number;
 	required?: boolean;
 	cursorAt?: Value;
 }
@@ -322,24 +339,26 @@ export const multiselect = <Value>(opts: MultiSelectOptions<Value>) => {
 		state: 'inactive' | 'active' | 'selected' | 'active-selected' | 'submitted' | 'cancelled'
 	) => {
 		const label = option.label ?? String(option.value);
-		if (state === 'active') {
-			return `${
-				option.disabled ? color.dim(S_CHECKBOX_ACTIVE) : color.cyan(S_CHECKBOX_ACTIVE)
-			} ${label} ${option.hint ? color.dim(`(${option.hint})`) : ''}`;
-		} else if (state === 'selected') {
-			return `${
-				option.disabled ? color.dim(S_CHECKBOX_SELECTED) : color.green(S_CHECKBOX_SELECTED)
-			} ${color.dim(label)}`;
-		} else if (state === 'cancelled') {
-			return `${color.strikethrough(color.dim(label))}`;
-		} else if (state === 'active-selected') {
-			return `${
-				option.disabled ? color.dim(S_CHECKBOX_SELECTED) : color.green(S_CHECKBOX_SELECTED)
-			} ${label} ${option.hint ? color.dim(`(${option.hint})`) : ''}`;
-		} else if (state === 'submitted') {
-			return `${color.dim(label)}`;
+		switch (state) {
+			case 'active':
+				return `${
+					option.disabled ? color.dim(S_CHECKBOX_ACTIVE) : color.cyan(S_CHECKBOX_ACTIVE)
+				} ${label} ${option.hint ? color.dim(`(${option.hint})`) : ''}`;
+			case 'selected':
+				return `${
+					option.disabled ? color.dim(S_CHECKBOX_SELECTED) : color.green(S_CHECKBOX_SELECTED)
+				} ${color.dim(label)}`;
+			case 'cancelled':
+				return `${color.strikethrough(color.dim(label))}`;
+			case 'active-selected':
+				return `${
+					option.disabled ? color.dim(S_CHECKBOX_SELECTED) : color.green(S_CHECKBOX_SELECTED)
+				} ${label} ${option.hint ? color.dim(`(${option.hint})`) : ''}`;
+			case 'submitted':
+				return `${color.dim(label)}`;
+			default:
+				return `${color.dim(S_CHECKBOX_INACTIVE)} ${color.dim(label)}`;
 		}
-		return `${color.dim(S_CHECKBOX_INACTIVE)} ${color.dim(label)}`;
 	};
 
 	return new MultiSelectPrompt({
@@ -372,11 +391,22 @@ export const multiselect = <Value>(opts: MultiSelectOptions<Value>) => {
 			}
 		},
 		render() {
-			let title = `${color.gray(S_BAR)}\n${symbol(this.state)}  ${opts.message}\n`;
+			let title = `${color.gray(S_BAR)}\n${symbol(this.state)}  ${opts.message}`;
+
+			const styleOption = (option: DisableableOption<Value>, active: boolean) => {
+				const selected = this.value.includes(option.value);
+				if (active && selected) {
+					return opt(option, 'active-selected');
+				}
+				if (selected) {
+					return opt(option, 'selected');
+				}
+				return opt(option, active ? 'active' : 'inactive');
+			};
 
 			switch (this.state) {
 				case 'submit': {
-					return `${title}${color.gray(S_BAR)}  ${
+					return `${title}\n${color.gray(S_BAR)}  ${
 						this.options
 							.filter(({ value }) => this.value.includes(value))
 							.map((option) => opt(option, 'submitted'))
@@ -388,7 +418,7 @@ export const multiselect = <Value>(opts: MultiSelectOptions<Value>) => {
 						.filter(({ value }) => this.value.includes(value))
 						.map((option) => opt(option, 'cancelled'))
 						.join(color.dim(', '));
-					return `${title}${color.gray(S_BAR)}  ${
+					return `${title}\n${color.gray(S_BAR)}  ${
 						label.trim() ? `${label}\n${color.gray(S_BAR)}` : ''
 					}`;
 				}
@@ -396,45 +426,23 @@ export const multiselect = <Value>(opts: MultiSelectOptions<Value>) => {
 					const footer = this.error
 						.split('\n')
 						.map((ln, i) =>
-							i === 0 ? `${color.yellow(S_BAR_END)}  ${color.yellow(ln)}` : `   ${ln}`
+							i === 0 ? `${color.yellow(S_BAR_END)}  ${color.yellow(ln)}` : `${color.hidden('-')}  ${ln}`
 						)
 						.join('\n');
-					return (
-						title +
-						color.yellow(S_BAR) +
-						'  ' +
-						this.options
-							.map((option, i) => {
-								const selected = this.value.includes(option.value);
-								const active = i === this.cursor;
-								if (active && selected) {
-									return opt(option, 'active-selected');
-								}
-								if (selected) {
-									return opt(option, 'selected');
-								}
-								return opt(option, active ? 'active' : 'inactive');
-							})
-							.join(`\n${color.yellow(S_BAR)}  `) +
-						'\n' +
-						footer +
-						'\n'
-					);
+					return `${title}\n${color.yellow(S_BAR)}  ${limitOptions({
+						options: this.options,
+						cursor: this.cursor,
+						maxItems: opts.maxItems,
+						style: styleOption,
+					}).join(`\n${color.yellow(S_BAR)}  `)}\n${footer}\n`;
 				}
 				default: {
-					return `${title}${color.cyan(S_BAR)}  ${this.options
-						.map((option, i) => {
-							const selected = this.value.includes(option.value);
-							const active = i === this.cursor;
-							if (active && selected) {
-								return opt(option, 'active-selected');
-							}
-							if (selected) {
-								return opt(option, 'selected');
-							}
-							return opt(option, active ? 'active' : 'inactive');
-						})
-						.join(`\n${color.cyan(S_BAR)}  `)}\n${color.cyan(S_BAR_END)}\n`;
+					return `${title}\n${color.cyan(S_BAR)}  ${limitOptions({
+						options: this.options,
+						cursor: this.cursor,
+						maxItems: opts.maxItems,
+						style: styleOption,
+					}).join(`\n${color.cyan(S_BAR)}  `)}\n${color.cyan(S_BAR_END)}\n`;
 				}
 			}
 		},
@@ -801,4 +809,34 @@ export const group = async <T>(
 	}
 
 	return results;
+};
+
+export type Task = {
+	/**
+	 * Task title
+	 */
+	title: string;
+	/**
+	 * Task function
+	 */
+	task: (message: (string: string) => void) => string | Promise<string> | void | Promise<void>;
+
+	/**
+	 * If enabled === false the task will be skipped
+	 */
+	enabled?: boolean;
+};
+
+/**
+ * Define a group of tasks to be executed
+ */
+export const tasks = async (tasks: Task[]) => {
+	for (const task of tasks) {
+		if (task.enabled === false) continue;
+
+		const s = spinner();
+		s.start(task.title);
+		const result = await task.task(s.message);
+		s.stop(result || task.title);
+	}
 };
