@@ -6,6 +6,7 @@ import { cursor } from 'sisteransi';
 import { hasAliasKey } from './aliases';
 
 export * from './aliases';
+export * from './mock';
 export * from './string';
 
 export const CANCEL_SYMBOL = Symbol('clack:cancel');
