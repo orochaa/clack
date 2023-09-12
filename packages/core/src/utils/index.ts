@@ -51,12 +51,12 @@ export function block({
 			});
 		});
 	};
-	if (hideCursor) process.stdout.write(cursor.hide);
+	if (hideCursor) output.write(cursor.hide);
 	input.once('keypress', clear);
 
 	return () => {
 		input.off('keypress', clear);
-		if (hideCursor) process.stdout.write(cursor.show);
+		if (hideCursor) output.write(cursor.show);
 		if (input.isTTY) input.setRawMode(false);
 
 		// @ts-expect-error fix for https://github.com/nodejs/node/issues/31762#issuecomment-1441223907
