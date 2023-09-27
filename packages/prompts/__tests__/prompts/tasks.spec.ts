@@ -1,14 +1,18 @@
 import { randomUUID } from 'crypto';
 import { Task, tasks } from '../../src';
 
-const startSpy = jest.fn();
-const messageSpy = jest.fn();
-const stopSpy = jest.fn();
+const mocks = vi.hoisted(() => ({
+	startSpy: vi.fn(),
+	messageSpy: vi.fn(),
+	stopSpy: vi.fn(),
+}));
 
-jest.mock('../../src/prompts/spinner', () => () => ({
-	start: startSpy,
-	message: messageSpy,
-	stop: stopSpy,
+vi.mock('../../src/prompts/spinner', () => ({
+	default: () => ({
+		start: mocks.startSpy,
+		message: mocks.messageSpy,
+		stop: mocks.stopSpy,
+	}),
 }));
 
 describe('tasks', () => {
@@ -23,7 +27,7 @@ describe('tasks', () => {
 
 		expect.assertions(length);
 		for (let i = 0; i < length; i++) {
-			expect(startSpy).toHaveBeenNthCalledWith(i + 1, String(i));
+			expect(mocks.startSpy).toHaveBeenNthCalledWith(i + 1, String(i));
 		}
 	});
 
@@ -37,8 +41,8 @@ describe('tasks', () => {
 
 		await tasks(data);
 
-		expect(startSpy).toHaveBeenNthCalledWith(1, String(0));
-		expect(startSpy).toHaveBeenNthCalledWith(2, String(2));
+		expect(mocks.startSpy).toHaveBeenNthCalledWith(1, String(0));
+		expect(mocks.startSpy).toHaveBeenNthCalledWith(2, String(2));
 	});
 
 	it('should stop tasks in sequence', async () => {
@@ -52,7 +56,7 @@ describe('tasks', () => {
 
 		expect.assertions(length);
 		for (let i = 0; i < length; i++) {
-			expect(stopSpy).toHaveBeenNthCalledWith(i + 1, String(i));
+			expect(mocks.stopSpy).toHaveBeenNthCalledWith(i + 1, String(i));
 		}
 	});
 
@@ -68,7 +72,7 @@ describe('tasks', () => {
 			},
 		]);
 
-		expect(messageSpy).toHaveBeenCalledWith(msg);
+		expect(mocks.messageSpy).toHaveBeenCalledWith(msg);
 	});
 
 	it('should stop task with returned message', async () => {
@@ -83,6 +87,6 @@ describe('tasks', () => {
 			},
 		]);
 
-		expect(stopSpy).toHaveBeenCalledWith(msg);
+		expect(mocks.stopSpy).toHaveBeenCalledWith(msg);
 	});
 });

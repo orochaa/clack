@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { mockPrompt, setGlobalAliases } from '../../src';
 import Prompt, { PromptOptions } from '../../src/prompts/prompt';
 
-const outputSpy = jest.spyOn(process.stdout, 'write').mockImplementation();
+const outputSpy = vi.spyOn(process.stdout, 'write').mockImplementation((() => {}) as any);
 
 const makeSut = (opts?: Omit<PromptOptions<Prompt>, 'render'>, trackValue?: boolean) => {
 	return new Prompt(
@@ -111,7 +111,7 @@ describe('Prompt', () => {
 		makeSut({}, false);
 
 		mock.on('cursor', (key) => {
-			key === 'cancel' ? done() : done('invalid key received: ' + key);
+			done.expect(key).toBe('cancel');
 		});
 		mock.pressKey('', { name: 'c' });
 	});
@@ -120,7 +120,7 @@ describe('Prompt', () => {
 		makeSut();
 
 		mock.on('cursor', (key) => {
-			key === 'cancel' ? done() : done('invalid key received: ' + key);
+			done.expect(key).toBe('cancel');
 		});
 		mock.pressKey('', { name: 'cancel' });
 	});

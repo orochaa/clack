@@ -10,7 +10,7 @@ import {
 	S_STEP_SUBMIT
 } from '../../src/utils';
 
-const outputSpy = jest.spyOn(process.stdout, 'write').mockImplementation();
+const outputSpy = vi.spyOn(process.stdout, 'write').mockImplementation((() => {}) as any);
 
 describe('note', () => {
 	it('should render note box', () => {

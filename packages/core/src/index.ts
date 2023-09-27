@@ -10,4 +10,4 @@ export { default as SelectPrompt, type SelectOptions } from './prompts/select';
 export { default as SelectKeyPrompt, type SelectKeyOptions } from './prompts/select-key';
 export { default as TextPrompt, type TextOptions } from './prompts/text';
 export type { ClackState as State } from './types';
-export { block, isCancel, mockPrompt, setGlobalAliases } from './utils';
+export { block, isCancel, mockPrompt, setGlobalAliases, type MockResult } from './utils';

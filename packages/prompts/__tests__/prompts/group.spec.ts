@@ -9,12 +9,12 @@ describe('group', () => {
 			bar: async () => true,
 			baz: async () => [1, 2, 3],
 			tee: async ({ results }) => {
-				results.foo === 'Foo' &&
-				results.bar === true &&
-				results.baz![0] === 1 &&
-				results.gee === undefined
-					? done()
-					: done(`invalid results: ${JSON.stringify(results, null, 2)}`);
+				const result =
+					results.foo === 'Foo' &&
+					results.bar === true &&
+					results.baz![0] === 1 &&
+					results.gee === undefined;
+				done.expect(result, `invalid results: ${JSON.stringify(results, null, 2)}`).toBe(true);
 			},
 			gee: async () => 0,
 		});
@@ -23,7 +23,7 @@ describe('group', () => {
 	it('should not cancel group on `prompt.cancel`', (done) => {
 		group({
 			foo: () => text({ message: '' }),
-			bar: () => done(),
+			bar: () => done.expect(true).toBe(true),
 		});
 
 		mock.cancel();
@@ -33,7 +33,7 @@ describe('group', () => {
 		group(
 			{
 				foo: async () => true,
-				bar: () => {
+				bar: async () => {
 					const promise = text({ message: '' });
 					mock.cancel();
 					return promise;
@@ -42,9 +42,8 @@ describe('group', () => {
 			},
 			{
 				onCancel: ({ results }) => {
-					results.foo === true && results.baz === undefined
-						? done()
-						: done(`invalid results: ${JSON.stringify(results, null, 2)}`);
+					const result = results.foo === true && results.baz === undefined;
+					done.expect(result, `invalid results: ${JSON.stringify(results, null, 2)}`).toBe(true);
 				},
 			}
 		);

@@ -9,10 +9,10 @@ import {
 	S_INFO,
 	S_STEP_SUBMIT,
 	S_SUCCESS,
-	S_WARN
+	S_WARN,
 } from '../../src/utils';
 
-const outputSpy = jest.spyOn(process.stdout, 'write').mockImplementation();
+const outputSpy = vi.spyOn(process.stdout, 'write').mockImplementation((() => {}) as any);
 
 describe('log', () => {
 	it('should log `cancel`', () => {

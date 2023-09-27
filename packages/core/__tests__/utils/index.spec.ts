@@ -1,32 +1,33 @@
 import { stdin, stdout } from 'node:process';
 import * as readline from 'node:readline';
 import { cursor } from 'sisteransi';
+import { Mock } from 'vitest';
 import { isCancel } from '../../src';
 import { block, CANCEL_SYMBOL, setGlobalAliases, setRawMode } from '../../src/utils';
 
 const rlSpy = {
 	terminal: true,
-	close: jest.fn(),
+	close: vi.fn(),
 };
 
-jest.mock('node:readline', () => ({
+vi.mock('node:readline', () => ({
 	__esModule: true,
-	createInterface: jest.fn(() => rlSpy),
-	emitKeypressEvents: jest.fn(),
-	moveCursor: jest.fn(),
-	clearLine: jest.fn(),
+	createInterface: vi.fn(() => rlSpy),
+	emitKeypressEvents: vi.fn(),
+	moveCursor: vi.fn(),
+	clearLine: vi.fn(),
 }));
 
-jest.mock('node:process', () => ({
+vi.mock('node:process', () => ({
 	__esModule: true,
 	stdin: {
 		isTTY: false,
-		once: jest.fn(),
-		setRawMode: jest.fn(),
-		off: jest.fn(),
+		once: vi.fn(),
+		setRawMode: vi.fn(),
+		off: vi.fn(),
 	},
 	stdout: {
-		write: jest.fn(),
+		write: vi.fn(),
 	},
 }));
 
@@ -44,7 +45,7 @@ describe('Utils', () => {
 			const input = {
 				isTTY: true,
 				setRawMode: (value: boolean) => {
-					value === true ? done() : done('invalid value');
+					done.expect(value).toBe(true);
 				},
 			} as any;
 			setRawMode(input, true);
@@ -54,7 +55,7 @@ describe('Utils', () => {
 			const input = {
 				isTTY: true,
 				setRawMode: (value: boolean) => {
-					value === false ? done() : done('invalid value');
+					done.expect(value).toBe(false);
 				},
 			} as any;
 			setRawMode(input, false);
@@ -147,13 +148,13 @@ describe('Utils', () => {
 		});
 
 		it('should `clear` char on keypress', () => {
-			(stdin.once as jest.Mock).mockImplementationOnce((event, cb) => {
+			(stdin.once as Mock).mockImplementationOnce((event, cb) => {
 				cb(Buffer.from('c'), { name: 'c', sequence: undefined });
 			});
-			(readline.moveCursor as jest.Mock).mockImplementationOnce((output, dx, dy, cb) => {
+			(readline.moveCursor as Mock).mockImplementationOnce((output, dx, dy, cb) => {
 				cb();
 			});
-			(readline.clearLine as jest.Mock).mockImplementationOnce((output, dir, cb) => {
+			(readline.clearLine as Mock).mockImplementationOnce((output, dir, cb) => {
 				cb();
 			});
 
@@ -166,10 +167,10 @@ describe('Utils', () => {
 		});
 
 		it('should not clear char on keypress if overwrite is false', () => {
-			(stdin.once as jest.Mock).mockImplementationOnce((event, cb) => {
+			(stdin.once as Mock).mockImplementationOnce((event, cb) => {
 				cb(Buffer.from('c'), { name: 'c', sequence: undefined });
 			});
-			(readline.moveCursor as jest.Mock).mockImplementationOnce((output, dx, dy, cb) => {
+			(readline.moveCursor as Mock).mockImplementationOnce((output, dx, dy, cb) => {
 				cb();
 			});
 
@@ -183,7 +184,7 @@ describe('Utils', () => {
 		});
 
 		it('should `clear` line on enter', () => {
-			(stdin.once as jest.Mock).mockImplementationOnce((event, cb) => {
+			(stdin.once as Mock).mockImplementationOnce((event, cb) => {
 				cb(Buffer.from('c'), { name: 'return', sequence: undefined });
 			});
 
@@ -195,10 +196,10 @@ describe('Utils', () => {
 
 		it('should exit on cancel alias', () => {
 			setGlobalAliases([['c', 'cancel']]);
-			(stdin.once as jest.Mock).mockImplementationOnce((event, cb) => {
+			(stdin.once as Mock).mockImplementationOnce((event, cb) => {
 				cb(Buffer.from('c'), { name: 'c', sequence: undefined });
 			});
-			const exitSpy = jest.spyOn(process, 'exit').mockImplementation();
+			const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {}) as any);
 
 			block()();
 
