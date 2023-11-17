@@ -853,7 +853,6 @@ function strLength(str: string): number {
 
 export const table = (lines: string[][]) => {
 	const colLengthList: number[] = new Array(lines[0].length).fill(0);
-
 	for (let i = 0; i < lines.length; i++) {
 		for (let j = 0; j < lines[i].length; j++) {
 			const colLength = strLength(lines[i][j]);
@@ -863,18 +862,18 @@ export const table = (lines: string[][]) => {
 		}
 	}
 
+	const formatLayoutLine = (start: string, join: string, end: string): string => {
+		return color.gray(
+			start + colLengthList.map((colLength) => '─'.repeat(colLength + 2)).join(join) + end
+		);
+	};
+	const topTable = formatLayoutLine('┌', '┬', '┐');
+	const lineIntersection = formatLayoutLine('├', '┼', '┤');
+	const bottomTable = formatLayoutLine('└', '┴', '┘');
+
 	const expandCol = (col: string, index: number): string => {
 		return col.trim() + ' '.repeat(Math.max(colLengthList[index] - strLength(col), 0));
 	};
-
-	const topTable = color.gray(
-		'┌' + colLengthList.map((colLength) => '─'.repeat(colLength + 2)).join('┬') + '┐'
-	);
-
-	const lineIntersection = color.gray(
-		'├' + colLengthList.map((colLength) => '─'.repeat(colLength + 2)).join('┼') + '┤'
-	);
-
 	const content = lines
 		.map((line, i) => [
 			i !== 0 && lineIntersection,
@@ -887,10 +886,6 @@ export const table = (lines: string[][]) => {
 		.flat()
 		.filter(Boolean)
 		.join('\n');
-
-	const bottomTable = color.gray(
-		'└' + colLengthList.map((colLength) => '─'.repeat(colLength + 2)).join('┴') + '┘'
-	);
 
 	process.stdout.write([topTable, content, bottomTable, ''].join('\n'));
 };
