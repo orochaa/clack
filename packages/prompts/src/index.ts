@@ -811,3 +811,86 @@ export const tasks = async (tasks: Task[]) => {
 		s.stop(result || task.title);
 	}
 };
+
+function isControlCharacter(code: number): boolean {
+	return code <= 0x1f || (code >= 0x7f && code <= 0x9f);
+}
+
+function isCombiningCharacter(code: number): boolean {
+	return code >= 0x300 && code <= 0x36f;
+}
+
+function isSurrogatePair(code: number): boolean {
+	return code >= 0xd800 && code <= 0xdbff;
+}
+
+function strLength(str: string): number {
+	if (str === '') {
+		return 0;
+	}
+
+	// Remove ANSI escape codes from the input string.
+	str = strip(str);
+
+	let length = 0;
+
+	for (let i = 0; i < str.length; i++) {
+		const code = str.codePointAt(i);
+
+		if (!code || isControlCharacter(code) || isCombiningCharacter(code)) {
+			continue;
+		}
+
+		if (isSurrogatePair(code)) {
+			i++; // Skip the next code unit.
+		}
+
+		length++;
+	}
+
+	return length;
+}
+
+export const table = (lines: string[][]) => {
+	const colLengthList: number[] = new Array(lines[0].length).fill(0);
+
+	for (let i = 0; i < lines.length; i++) {
+		for (let j = 0; j < lines[i].length; j++) {
+			const colLength = strLength(lines[i][j]);
+			if (colLengthList[j] < colLength) {
+				colLengthList[j] = colLength;
+			}
+		}
+	}
+
+	const expandCol = (col: string, index: number): string => {
+		return col.trim() + ' '.repeat(Math.max(colLengthList[index] - strLength(col), 0));
+	};
+
+	const topTable = color.gray(
+		'┌' + colLengthList.map((colLength) => '─'.repeat(colLength + 2)).join('┬') + '┐'
+	);
+
+	const lineIntersection = color.gray(
+		'├' + colLengthList.map((colLength) => '─'.repeat(colLength + 2)).join('┼') + '┤'
+	);
+
+	const content = lines
+		.map((line, i) => [
+			i !== 0 && lineIntersection,
+			[
+				color.gray(S_BAR),
+				line.map(expandCol).join(` ${color.gray(S_BAR)} `),
+				color.gray(S_BAR),
+			].join(' '),
+		])
+		.flat()
+		.filter(Boolean)
+		.join('\n');
+
+	const bottomTable = color.gray(
+		'└' + colLengthList.map((colLength) => '─'.repeat(colLength + 2)).join('┴') + '┘'
+	);
+
+	process.stdout.write([topTable, content, bottomTable, ''].join('\n'));
+};
