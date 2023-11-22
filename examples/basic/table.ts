@@ -8,4 +8,9 @@ import color from 'picocolors';
 		[`Prettier ${color.dim('(dev)')}`, '3.0.2', '3.' + color.yellow('1.0')],
 		[`@types/node ${color.dim('(dev)')}`, '18.16.0', color.red('20.9.1')],
 	]);
+	p.table([
+		['Package', 'Current', 'Latest','1'].map(color.blue), 
+		['Full Line'],
+		['4','5','6']
+	]);
 })();

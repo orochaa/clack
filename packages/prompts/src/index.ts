@@ -851,11 +851,43 @@ function strLength(str: string): number {
 	return length;
 }
 
-export const table = (lines: string[][]) => {
+type TableCol = {
+	text: string;
+	align: TableAlign;
+};
+
+type TableAlign = 'left' | 'center' | 'right';
+
+type TableOptions = {
+	align: TableAlign;
+};
+
+export const table = (table: (string | TableCol)[][], options?: TableOptions) => {
+	const lines: TableCol[][] = table.map((line) =>
+		line.map((col) =>
+			typeof col === 'string' ? { text: col, align: options?.align ?? 'left' } : col
+		)
+	);
+
 	const colLengthList: number[] = new Array(lines[0].length).fill(0);
+
 	for (let i = 0; i < lines.length; i++) {
 		for (let j = 0; j < lines[i].length; j++) {
-			const colLength = strLength(lines[i][j]);
+			// if (lines[i][j].includes('\n')) {
+			// 	const lineParts = lines[i][j].split('\n');
+			// 	lines[i][j] = lineParts[0];
+			// 	for (let k = 1; k < lineParts.length; k++) {
+			// 		const line = new Array(colLengthList.length).fill('');
+			// 		line[j] = lineParts[k];
+			// 		lines = [...lines.slice(0, i + k), line, ...lines.slice(i + k)];
+			// 		const colLength = strLength(lineParts[k]);
+			// 		if (colLengthList[j] < colLength) {
+			// 			colLengthList[j] = colLength;
+			// 		}
+			// 	}
+			// }
+
+			const colLength = strLength(lines[i][j].text);
 			if (colLengthList[j] < colLength) {
 				colLengthList[j] = colLength;
 			}
@@ -872,20 +904,53 @@ export const table = (lines: string[][]) => {
 	const bottomTable = formatLayoutLine('└', '┴', '┘');
 
 	const expandCol = (col: string, index: number): string => {
-		return col.trim() + ' '.repeat(Math.max(colLengthList[index] - strLength(col), 0));
+		return col + ' '.repeat(Math.max(colLengthList[index] - strLength(col), 0));
 	};
-	const content = lines
-		.map((line, i) => [
-			i !== 0 && lineIntersection,
-			[
-				color.gray(S_BAR),
-				line.map(expandCol).join(` ${color.gray(S_BAR)} `),
-				color.gray(S_BAR),
-			].join(' '),
-		])
-		.flat()
-		.filter(Boolean)
-		.join('\n');
+	const tableContent: string[] = [];
+	const BAR = color.gray(S_BAR);
 
-	process.stdout.write([topTable, content, bottomTable, ''].join('\n'));
+	for (let i = 0; i < lines.length; i++) {
+		if (i !== 0) {
+			tableContent.push(lineIntersection);
+		}
+		const cols: string[] = [];
+		for (let j = 0; j < lines[i].length; j++) {
+			let col = '';
+			if (!lines[i][j + 1] && j + 1 < colLengthList.length) {
+				for (let k = j; k < colLengthList.length; k++) {
+					if (lines[i][k] && lines[i][k] !== lines[i][j]) break;
+					col += expandCol(k === j ? lines[i][j].text.trim() : '', k) + '  ';
+					if (k !== j) {
+						const layoutColIndex = colLengthList.slice(0, k + 1).reduce((a, b) => a + b) + 14;
+						const layoutLine = tableContent[i * 2 - 1];
+						const preCol = layoutLine.slice(0, layoutColIndex - 1);
+						const postCol = layoutLine.slice(layoutColIndex);
+						tableContent[i * 2 - 1] = preCol + '┴' + postCol;
+						console.log(k, layoutColIndex);
+						process.stdout.write(
+							`${tableContent[i * 2 - 1]}\n${preCol}\n${' '.repeat(layoutColIndex - 5) + postCol}\n`
+						);
+					}
+				}
+				const spaces = col.replace(/.*?(\s*)$/, '$1');
+				const midSpaceIndex = Math.round(spaces.length / 2) + 1;
+				col = spaces.slice(0, midSpaceIndex) + col.trim() + spaces.slice(midSpaceIndex);
+			} else {
+				col = expandCol(lines[i][j].text.trim(), j);
+			}
+			cols.push(col);
+		}
+		tableContent.push([BAR, cols.join(` ${BAR} `), BAR].join(' '));
+	}
+
+	// lines
+	// 	.map((line, i) => [
+	// 		i !== 0 && lineIntersection,
+	// 		[, line.map(expandCol).join(` ${color.gray(S_BAR)} `), color.gray(S_BAR)].join(' '),
+	// 	])
+	// 	.flat()
+	// 	.filter(Boolean)
+	// 	.join('\n');
+
+	process.stdout.write([topTable, tableContent, bottomTable, ''].flat().join('\n'));
 };
