@@ -5,6 +5,7 @@ import {
 	isCancel,
 	MultiSelectPrompt,
 	PasswordPrompt,
+	ProgressBar,
 	SelectKeyPrompt,
 	SelectPrompt,
 	State,
@@ -810,4 +811,36 @@ export const tasks = async (tasks: Task[]) => {
 		const result = await task.task(s.message);
 		s.stop(result || task.title);
 	}
+};
+
+export interface ProgressOptions {
+	type: string;
+	initialValue?: number;
+	total: number;
+	precision?: number;
+	barSize?: number;
+}
+
+type Progress = Pick<ProgressBar, 'start' | 'close' | 'submit' | 'increment' | 'update'>;
+
+export const progress = (opts: ProgressOptions): Progress => {
+	return new ProgressBar({
+		...opts,
+		render() {
+			if (this.state === 'submit' && this.message) {
+				return `${color.gray(S_BAR)}\n${color.gray(S_BAR)} ${this.message}`;
+			}
+			if (this.state === 'error' && this.error) {
+				return `${color.gray(S_BAR)}\n${color.gray(S_BAR)} ${this.error}`;
+			}
+			return [
+				`${color.gray(S_BAR)}\n`,
+				color.gray(S_BAR),
+				color.green(this.type),
+				this.bar,
+				`${this.value}/${this.total}`,
+				color.dim(this.name),
+			].join(' ');
+		},
+	});
 };

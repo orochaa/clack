@@ -218,7 +218,7 @@ export default class Prompt {
 	}
 
 	private _prevFrame = '';
-	private render() {
+	protected render() {
 		const frame = wrap(this._render(this) ?? '', process.stdout.columns, { hard: true });
 		if (frame === this._prevFrame) return;
 
