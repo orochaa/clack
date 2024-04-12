@@ -26,7 +26,7 @@ export default class Prompt {
 	protected output: Writable;
 	private _abortSignal?: AbortSignal;
 
-	private rl: ReadLine | undefined;
+	protected rl: ReadLine | undefined;
 	private opts: Omit<PromptOptions<Prompt>, 'render' | 'input' | 'output'>;
 	private _render: (context: Omit<Prompt, 'prompt'>) => string | undefined;
 	private _track = false;
@@ -199,8 +199,8 @@ export default class Prompt {
 				this.emit('value', this.opts.placeholder);
 			}
 		}
-		if (char) {
-			this.emit('key', char.toLowerCase());
+		if (char || key) {
+			this.emit('key', char?.toLowerCase() ?? '', key);
 		}
 
 		if (key?.name === 'return') {
