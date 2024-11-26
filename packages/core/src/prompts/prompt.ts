@@ -22,8 +22,6 @@ export interface PromptOptions<Self extends Prompt> {
 	signal?: AbortSignal;
 }
 
-export type State = 'initial' | 'active' | 'cancel' | 'submit' | 'error';
-
 export type LineOption = 'firstLine' | 'newLine' | 'lastLine';
 
 export interface FormatLineOptions {
@@ -338,8 +336,8 @@ export default class Prompt {
 		): NonNullable<FormatOptions[TLine][TKey]> => {
 			return (
 				key === 'style'
-					? options?.[line]?.[key] ?? options?.default?.[key] ?? ((line) => line)
-					: options?.[line]?.[key] ?? options?.[line]?.sides ?? options?.default?.[key] ?? ''
+					? (options?.[line]?.[key] ?? options?.default?.[key] ?? ((line) => line))
+					: (options?.[line]?.[key] ?? options?.[line]?.sides ?? options?.default?.[key] ?? '')
 			) as NonNullable<FormatOptions[TLine][TKey]>;
 		};
 		const getLineOptions = (line: LineOption): Omit<FormatLineOptions, 'sides'> => {
@@ -401,14 +399,14 @@ export default class Prompt {
 				): FormatLineOptions[TPosition] => {
 					return (
 						i === 0 && ar.length === 1
-							? options?.firstLine?.[position] ??
-							  options?.lastLine?.[position] ??
-							  firstLine[position]
+							? (options?.firstLine?.[position] ??
+								options?.lastLine?.[position] ??
+								firstLine[position])
 							: i === 0
-							? firstLine[position]
-							: i + 1 === ar.length
-							? lastLine[position]
-							: newLine[position]
+								? firstLine[position]
+								: i + 1 === ar.length
+									? lastLine[position]
+									: newLine[position]
 					) as FormatLineOptions[TPosition];
 				};
 				const startLine = opt('start');
@@ -426,9 +424,10 @@ export default class Prompt {
 			.join('\n');
 	}
 
-	private _prevFrame = '';
 	private render() {
-		const frame = wrap(this._render(this) ?? '', process.stdout.columns, { hard: true });
+		const frame = wrap(this._render(this) ?? '', process.stdout.columns, {
+			hard: true,
+		});
 		if (frame === this._prevFrame) return;
 
 		if (this.state === 'initial') {
